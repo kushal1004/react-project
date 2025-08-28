@@ -89,34 +89,9 @@
     function App() {
       const [chatMessages, setChatMessages] = React.useState([
         {
-          message: "Hello chatBot",
-          sender: "user",
-          id: "id1"
-        },
-        {
-          message: "How can i help you",
-          sender: "robot",
-          id: "id2"
-        },
-        {
-          message: "what is the today's date",
-          sender: "user",
-          id: "id3"
-        },
-        {
-          message: "Today is August 23",
-          sender: "robot",
-          id: "id4"
-        },
-        {
-          message: "Current Time",
-          sender: "user",
-          id: "id5"
-        },
-        {
-          message: "20-10-15",
-          sender: "robot",
-          id: "id6"
+          message: "",
+          sender: "",
+          id: crypto.randomUUID()
         }
       ]);
       

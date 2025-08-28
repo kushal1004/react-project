@@ -14,115 +14,126 @@
 
   <script src="https://unpkg.com/supersimpledev/babel.js"></script>
   <script type="text/babel">
-
-    const container = document.querySelector('.js-container')
+   const container = document.querySelector('.js-container')
     const root = ReactDOM.createRoot(container)
 
-    function ChatInput({ chatMessages,setChatMessages }) {
-       const [ inputText, setInputText] = React.useState('')
+    function ChatInput({ setChatMessages, chatMessages }) {
+      const [inputText, setInputText] = React.useState('')
 
-      function saveInputText(event){
-        setInputText(event.target.value)
+      function saveInputText(event) {
+        setInputText(event.target.value);
       }
 
-      function sendMessage(){
-        const newChatMessages = [
-          ...chatMessages,
-          {
-            message:inputText,
-            sender:"user",
-            id:crypto.randomUUID()
+      function sendMessage() {
+        const newChatMessage = [
+          ...chatMessages, {
+            message: inputText,
+            sender: "user",
+            id: crypto.randomUUID()
           }
         ]
-        setChatMessages(newChatMessages); 
-
-        const response = Chatbot.getResponse(inputText)
-          setChatMessages([
-          ...newChatMessages,
-          {
-            message:response,
-            sender:"robot",
-            id:crypto.randomUUID()
-          }])
+        setChatMessages(newChatMessage);
+           const response = Chatbot.getResponse(inputText);
+           setChatMessages([
+          ...newChatMessage, {
+            message: response,
+            sender: "robot",
+            id: crypto.randomUUID()
+          }
+        ])
 
         setInputText('')
       }
 
       return (
         <>
-          <input placeholder="Enter your messages" size='30' onChange={saveInputText} value={inputText}/>
+          <input
+            onChange={saveInputText}
+            placeholder='Send a message to chatbot'
+            size='30'
+            value={inputText}
+          />
           <button onClick={sendMessage}>Send</button>
+        </>
+      );
+    }
+
+    function ChatMessages({ chatMessages }) {
+      return (
+        <>
+          {
+            chatMessages.map((chatMessage) => {
+              return (
+                <ChatMessage
+                  message={chatMessage.message}
+                  sender={chatMessage.sender}
+                  key={chatMessage.id}
+                />
+              )
+            })
+          }
         </>
       )
     }
-
 
     function ChatMessage({ message, sender }) {
       return (
         <div>
-          {sender === 'robot' && (<img src="img/bot.png" width='50' />)}
+          {sender === 'robot' && (<img src="img/bot.png" width='45' />)}
           {message}
-          {sender === 'user' && (<img src="img/user.avif" width="50" />)}
+          {sender === 'user' && (<img src="img/user.avif" width='45' />)}
         </div>
-      )
-    }
-
-
-    function ChatMessages({chatMessages}) {
-      return (
-        <>
-          {chatMessages.map((chatMessage) => {
-            return (
-              <ChatMessage
-                message={chatMessage.message}
-                sender={chatMessage.sender}
-                key={chatMessage.id}
-              />
-            )
-          })}
-        </>
-      )
-
+      );
     }
 
     function App() {
-      const [ chatMessages,setChatMessages ] = React.useState([
+      const [chatMessages, setChatMessages] = React.useState([
         {
-          message: "hi chat bot",
+          message: "Hello chatBot",
           sender: "user",
           id: "id1"
         },
         {
-          message: "how can i help you",
+          message: "How can i help you",
           sender: "robot",
           id: "id2"
         },
         {
-          message: "what is today's date",
+          message: "what is the today's date",
           sender: "user",
           id: "id3"
         },
         {
-          message: "today is 27th August",
+          message: "Today is August 23",
           sender: "robot",
           id: "id4"
+        },
+        {
+          message: "Current Time",
+          sender: "user",
+          id: "id5"
+        },
+        {
+          message: "20-10-15",
+          sender: "robot",
+          id: "id6"
         }
-      ])
-
+      ]);
+      
       return (
         <>
           <ChatInput
-            chatMessages = {chatMessages}
-            setChatMessages = {setChatMessages}
+            chatMessages={chatMessages}
+            setChatMessages={setChatMessages}
           />
-          <ChatMessages 
-            chatMessages = {chatMessages}
+          <ChatMessages
+            chatMessages={chatMessages}
           />
         </>
-      )
+      );
     }
 
-    root.render(<App />)
+    root.render(<App />);
   </script>
 </body>
 

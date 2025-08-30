@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cook's Challenge: The Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chosen Palette: Warm Kitchen -->
+    <!-- Application Structure Plan: The application is a Single-Page App (SPA) that simulates a multi-screen experience by showing and hiding different sections (divs). This structure directly implements the user flow from the source report. The flow is linear (Screen 1 through 6), with 'Next' and 'Back' buttons for navigation, addressing peer feedback for better usability. A central JavaScript object, `gameState`, manages all user selections, acting as a simple state machine. This design was chosen because it's a lightweight and effective way to create a guided, step-by-step interactive experience without page reloads, perfectly matching the competition's sequential nature. -->
+    <!-- Visualization & Content Choices: Report Info: Dish Selection -> Goal: Choose a category -> Presentation: Large clickable cards with icons -> Interaction: Click to select and advance. Justification: Visual and intuitive. | Report Info: Ingredients/Tools -> Goal: Select items -> Presentation: Checkbox grid -> Interaction: Click to select. Justification: Standard, clear method for multiple selections. | Report Info: Procedures -> Goal: Order cooking steps -> Presentation: A dual-list system (available vs. selected) -> Interaction: Click to add/remove/reorder steps. Justification: A simpler, more accessible alternative to drag-and-drop that still captures the core task of sequencing. | Report Info: Scoring -> Goal: Display results -> Presentation: Large text for score, simple list for leaderboard. Justification: Clear information hierarchy. All icons are Unicode characters to avoid external assets. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .screen {
+            display: none;
+        }
+        .screen.active {
+            display: block;
+        }
+        .option-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .option-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .option-card.selected {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.5);
+        }
+        .step-button {
+            cursor: pointer;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-stone-50 text-stone-800 flex items-center justify-center min-h-screen p-4">
+
+    <main class="bg-white rounded-2xl shadow-lg w-full max-w-4xl mx-auto p-6 md:p-10 relative overflow-hidden">
+        
+        <div id="progress-bar" class="w-full bg-stone-200 rounded-full h-2.5 mb-8">
+            <div id="progress-indicator" class="bg-amber-500 h-2.5 rounded-full" style="width: 0%"></div>
+        </div>
+
+        <!-- Screen 1: Welcome & Dish Selection -->
+        <section id="screen-1" class="screen active">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl font-bold font-serif text-stone-900">Cook's Challenge</h1>
+                <p class="mt-2 text-lg text-stone-600">Select the dish you'd like to create.</p>
+            </div>
+            <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div onclick="selectDish('Pasta')" class="option-card cursor-pointer bg-stone-100 p-8 rounded-xl border-2 border-transparent text-center">
+                    <div class="text-6xl mb-4">🍝</div>
+                    <h3 class="text-xl font-bold">Pasta Perfection</h3>
+                    <p class="text-stone-500 mt-1">A classic Italian favorite.</p>
+                </div>
+                <div onclick="selectDish('Stew')" class="option-card cursor-pointer bg-stone-100 p-8 rounded-xl border-2 border-transparent text-center">
+                    <div class="text-6xl mb-4">🍲</div>
+                    <h3 class="text-xl font-bold">Savory Stew</h3>
+                    <p class="text-stone-500 mt-1">Hearty and comforting.</p>
+                </div>
+                <div onclick="selectDish('Cake')" class="option-card cursor-pointer bg-stone-100 p-8 rounded-xl border-2 border-transparent text-center">
+                    <div class="text-6xl mb-4">🍰</div>
+                    <h3 class="text-xl font-bold">Sweet Treat Cake</h3>
+                    <p class="text-stone-500 mt-1">A delightful dessert.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 2: Ingredients & Portions -->
+        <section id="screen-2" class="screen">
+            <h2 class="text-3xl font-bold font-serif text-center">Ingredients & Portions</h2>
+            <div class="flex flex-col md:flex-row items-center justify-center gap-4 mt-6">
+                <label for="servings" class="text-lg font-medium">Number of Servings:</label>
+                <input type="number" id="servings" value="2" min="1" max="10" class="w-24 text-center p-2 border-2 border-stone-300 rounded-lg focus:ring-amber-500 focus:border-amber-500">
+            </div>
+            <div id="ingredients-grid" class="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <!-- Ingredients will be populated by JS -->
+            </div>
+            <div class="mt-8 text-center">
+                <button onclick="getRecipe()" id="recipe-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors">Get Recipe ✨</button>
+            </div>
+            <div id="recipe-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto relative">
+                    <button onclick="closeRecipeModal()" class="absolute top-3 right-3 text-stone-500 hover:text-stone-800 text-2xl font-bold">&times;</button>
+                    <h3 class="text-2xl font-bold font-serif mb-4">Your Custom Recipe</h3>
+                    <div id="recipe-content" class="prose max-w-none text-stone-800"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 3: Essential Tools -->
+        <section id="screen-3" class="screen">
+            <h2 class="text-3xl font-bold font-serif text-center">Essential Tools</h2>
+            <p class="text-center mt-2 text-stone-600">Choose the equipment you'll need.</p>
+            <div id="tools-grid" class="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <!-- Tools will be populated by JS -->
+            </div>
+        </section>
+
+        <!-- Screen 4: Master Chef Procedures -->
+        <section id="screen-4" class="screen">
+            <h2 class="text-3xl font-bold font-serif text-center">Cooking Procedures</h2>
+            <p class="text-center mt-2 text-stone-600">Arrange your cooking steps in the correct order.</p>
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="font-bold text-lg mb-2">Available Steps</h3>
+                    <div id="available-procedures" class="space-y-2">
+                        <!-- Procedures will be populated by JS -->
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-bold text-lg mb-2">Your Recipe Steps</h3>
+                    <div id="selected-procedures" class="bg-stone-100 p-4 rounded-lg min-h-[200px] space-y-2">
+                        <!-- Selected procedures will appear here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 5: The Final Touch: Plating -->
+        <section id="screen-5" class="screen">
+            <h2 class="text-3xl font-bold font-serif text-center">The Final Touch: Plating</h2>
+            <p class="text-center mt-2 text-stone-600">How will you present your dish?</p>
+            <div class="mt-8 flex flex-col items-center">
+                <div class="w-64 h-64 bg-white rounded-full shadow-inner border-4 border-stone-200 flex items-center justify-center text-stone-400 text-lg relative" id="plate">
+                    Your Dish
+                </div>
+                <div class="mt-6">
+                    <h3 class="font-bold text-lg mb-2 text-center">Choose a Garnish:</h3>
+                    <div id="plating-options" class="flex gap-4">
+                        <!-- Plating options will be populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 6: Results & Leaderboard -->
+        <section id="screen-6" class="screen">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold font-serif">Your Results!</h2>
+                <p class="mt-4 text-6xl md:text-8xl font-bold text-amber-500" id="final-score">0</p>
+                <p class="text-xl text-stone-600 mt-2">points</p>
+                <div id="score-justification" class="mt-6 text-left max-w-md mx-auto bg-stone-100 p-4 rounded-lg"></div>
+                <div class="mt-8">
+                    <h3 class="text-2xl font-bold font-serif">Leaderboard</h3>
+                    <ul class="mt-4 space-y-2 max-w-sm mx-auto">
+                        <li class="flex justify-between p-3 bg-yellow-300 rounded-lg font-bold"><span>🥇 1st Place: Chef Antoine</span><span>98 pts</span></li>
+                        <li class="flex justify-between p-3 bg-gray-300 rounded-lg font-bold"><span>🥈 2nd Place: Chef Isabella</span><span>95 pts</span></li>
+                        <li class="flex justify-between p-3 bg-yellow-600/50 rounded-lg font-bold"><span>🥉 3rd Place: Chef Kenji</span><span>92 pts</span></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation -->
+        <div id="navigation-buttons" class="mt-12 flex justify-between">
+            <button id="back-btn" onclick="navigateBack()" class="bg-stone-300 hover:bg-stone-400 text-stone-800 font-bold py-2 px-6 rounded-lg transition-colors hidden">Back</button>
+            <button id="next-btn" onclick="navigateNext()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-6 rounded-lg transition-colors ml-auto hidden">Next</button>
+            <button id="submit-btn" onclick="submitForScoring()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg transition-colors ml-auto hidden">Submit for Scoring</button>
+            <button id="restart-btn" onclick="restartGame()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors mx-auto hidden">Play Again</button>
+        </div>
+    </main>
+
+    <script>
+        const screens = document.querySelectorAll('.screen');
+        const backBtn = document.getElementById('back-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const submitBtn = document.getElementById('submit-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const progressIndicator = document.getElementById('progress-indicator');
+        
+        let currentScreenIndex = 0;
+        const totalScreens = 6;
+
+        let gameState = {
+            dish: null,
+            servings: 2,
+            ingredients: [],
+            tools: [],
+            procedures: [],
+            plating: null,
+        };
+
+        const DATA = {
+            Pasta: {
+                ingredients: ['Pasta', 'Tomato', 'Garlic', 'Onion', 'Olive Oil', 'Basil', 'Cheese', 'Salt'],
+                tools: ['Pot', 'Pan', 'Knife', 'Cutting Board', 'Colander', 'Grater'],
+                procedures: ['Boil water', 'Cook pasta', 'Chop vegetables', 'Sauté vegetables', 'Combine and serve'],
+                plating: ['🌿 Basil Sprig', '🧀 Grated Cheese'],
+                solution: {
+                    ingredients: ['Pasta', 'Tomato', 'Garlic', 'Onion', 'Olive Oil', 'Basil', 'Cheese'],
+                    tools: ['Pot', 'Pan', 'Knife', 'Cutting Board', 'Colander'],
+                    procedures: ['Boil water', 'Cook pasta', 'Chop vegetables', 'Sauté vegetables', 'Combine and serve'],
+                    plating: '🧀 Grated Cheese'
+                }
+            },
+            Stew: {
+                ingredients: ['Beef', 'Carrot', 'Potato', 'Onion', 'Celery', 'Broth', 'Flour', 'Oil'],
+                tools: ['Large Pot', 'Knife', 'Cutting Board', 'Wooden Spoon', 'Stove'],
+                procedures: ['Chop vegetables', 'Brown beef', 'Sauté vegetables', 'Add broth and simmer', 'Thicken stew'],
+                plating: ['🥖 Crusty Bread', '🌿 Parsley Flakes'],
+                 solution: {
+                    ingredients: ['Beef', 'Carrot', 'Potato', 'Onion', 'Celery', 'Broth', 'Oil'],
+                    tools: ['Large Pot', 'Knife', 'Cutting Board', 'Wooden Spoon', 'Stove'],
+                    procedures: ['Chop vegetables', 'Brown beef', 'Sauté vegetables', 'Add broth and simmer', 'Thicken stew'],
+                    plating: '🌿 Parsley Flakes'
+                }
+            },
+            Cake: {
+                ingredients: ['Flour', 'Sugar', 'Eggs', 'Butter', 'Milk', 'Baking Powder', 'Vanilla', 'Chocolate'],
+                tools: ['Mixing Bowl', 'Mixer', 'Oven', 'Cake Pan', 'Spatula'],
+                procedures: ['Preheat oven', 'Cream butter and sugar', 'Mix ingredients', 'Pour into pan', 'Bake'],
+                plating: ['🍓 Fresh Berries', '🍫 Chocolate Drizzle'],
+                solution: {
+                    ingredients: ['Flour', 'Sugar', 'Eggs', 'Butter', 'Milk', 'Baking Powder', 'Vanilla'],
+                    tools: ['Mixing Bowl', 'Mixer', 'Oven', 'Cake Pan', 'Spatula'],
+                    procedures: ['Preheat oven', 'Cream butter and sugar', 'Mix ingredients', 'Pour into pan', 'Bake'],
+                    plating: '🍓 Fresh Berries'
+                }
+            }
+        };
+
+        function showScreen(index) {
+            screens.forEach((screen, i) => {
+                screen.classList.toggle('active', i === index);
+            });
+            currentScreenIndex = index;
+            updateNavigation();
+            updateProgressBar();
+        }
+
+        function updateProgressBar() {
+            const progress = ((currentScreenIndex) / (totalScreens - 1)) * 100;
+            progressIndicator.style.width = `${progress}%`;
+        }
+
+        function updateNavigation() {
+            backBtn.classList.toggle('hidden', currentScreenIndex === 0);
+            nextBtn.classList.toggle('hidden', currentScreenIndex >= 4 || currentScreenIndex === 0);
+            submitBtn.classList.toggle('hidden', currentScreenIndex !== 4);
+            restartBtn.classList.toggle('hidden', currentScreenIndex !== 5);
+            
+            if (currentScreenIndex === 0) {
+                 document.getElementById('navigation-buttons').classList.add('justify-center');
+                 document.getElementById('navigation-buttons').classList.remove('justify-between');
+            } else {
+                 document.getElementById('navigation-buttons').classList.remove('justify-center');
+                 document.getElementById('navigation-buttons').classList.add('justify-between');
+            }
+        }
+
+        function navigateNext() {
+            if (currentScreenIndex < totalScreens - 1) {
+                // Save data from current screen
+                if (currentScreenIndex === 1) { // Ingredients
+                    gameState.servings = document.getElementById('servings').value;
+                    gameState.ingredients = Array.from(document.querySelectorAll('#ingredients-grid input:checked')).map(el => el.value);
+                }
+                if (currentScreenIndex === 2) { // Tools
+                    gameState.tools = Array.from(document.querySelectorAll('#tools-grid input:checked')).map(el => el.value);
+                }
+                showScreen(currentScreenIndex + 1);
+            }
+        }
+
+        function navigateBack() {
+            if (currentScreenIndex > 0) {
+                showScreen(currentScreenIndex - 1);
+            }
+        }
+
+        function selectDish(dish) {
+            gameState.dish = dish;
+            document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+
+            populateIngredients();
+            populateTools();
+            populateProcedures();
+            populatePlating();
+            
+            setTimeout(() => showScreen(1), 300);
+        }
+
+        function createCheckboxItem(value, list, gridId) {
+            const isChecked = list.includes(value);
+            return `
+                <label class="flex items-center space-x-2 p-3 bg-stone-100 rounded-lg cursor-pointer hover:bg-stone-200">
+                    <input type="checkbox" value="${value}" class="form-checkbox h-5 w-5 text-amber-500 rounded focus:ring-amber-500" ${isChecked ? 'checked' : ''}>
+                    <span>${value}</span>
+                </label>
+            `;
+        }
+        
+        function populateIngredients() {
+            const grid = document.getElementById('ingredients-grid');
+            grid.innerHTML = DATA[gameState.dish].ingredients.map(item => createCheckboxItem(item, gameState.ingredients, 'ingredients-grid')).join('');
+        }
+
+        function populateTools() {
+            const grid = document.getElementById('tools-grid');
+            grid.innerHTML = DATA[gameState.dish].tools.map(item => createCheckboxItem(item, gameState.tools, 'tools-grid')).join('');
+        }
+
+        function populateProcedures() {
+            const availableContainer = document.getElementById('available-procedures');
+            availableContainer.innerHTML = DATA[gameState.dish].procedures.map(proc => `
+                <div onclick="addProcedure('${proc}')" class="step-button p-2 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200">${proc}</div>
+            `).join('');
+            renderSelectedProcedures();
+        }
+
+        function addProcedure(proc) {
+            if (!gameState.procedures.includes(proc)) {
+                gameState.procedures.push(proc);
+                renderSelectedProcedures();
+            }
+        }
+        
+        function removeProcedure(index) {
+            gameState.procedures.splice(index, 1);
+            renderSelectedProcedures();
+        }
+
+        function moveProcedure(index, direction) {
+            if (direction === 'up' && index > 0) {
+                [gameState.procedures[index], gameState.procedures[index - 1]] = [gameState.procedures[index - 1], gameState.procedures[index]];
+            }
+            if (direction === 'down' && index < gameState.procedures.length - 1) {
+                [gameState.procedures[index], gameState.procedures[index + 1]] = [gameState.procedures[index + 1], gameState.procedures[index]];
+            }
+            renderSelectedProcedures();
+        }
+
+        function renderSelectedProcedures() {
+            const selectedContainer = document.getElementById('selected-procedures');
+            if (gameState.procedures.length === 0) {
+                selectedContainer.innerHTML = `<p class="text-stone-500 text-center">Click on available steps to add them here.</p>`;
+                return;
+            }
+            selectedContainer.innerHTML = gameState.procedures.map((proc, index) => `
+                <div class="flex items-center justify-between p-2 bg-white rounded-md shadow-sm">
+                    <span>${index + 1}. ${proc}</span>
+                    <div class="flex items-center space-x-1">
+                        <button onclick="moveProcedure(${index}, 'up')" class="p-1 rounded-full hover:bg-stone-200 ${index === 0 ? 'opacity-25 cursor-not-allowed' : ''}" ${index === 0 ? 'disabled' : ''}>▲</button>
+                        <button onclick="moveProcedure(${index}, 'down')" class="p-1 rounded-full hover:bg-stone-200 ${index === gameState.procedures.length - 1 ? 'opacity-25 cursor-not-allowed' : ''}" ${index === gameState.procedures.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button onclick="removeProcedure(${index})" class="p-1 text-red-500 rounded-full hover:bg-stone-200">✖</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function populatePlating() {
+            const container = document.getElementById('plating-options');
+            container.innerHTML = DATA[gameState.dish].plating.map(item => `
+                <div onclick="selectPlating('${item}')" class="option-card cursor-pointer p-4 bg-stone-100 rounded-lg border-2 border-transparent text-2xl">${item}</div>
+            `).join('');
+        }
+
+        function selectPlating(plating) {
+            gameState.plating = plating;
+            document.querySelectorAll('#plating-options .option-card').forEach(card => card.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+            document.getElementById('plate').innerText = plating;
+        }
+
+        function submitForScoring() {
+            calculateScore();
+            getJustification();
+            showScreen(5);
+        }
+
+        function calculateScore() {
+            let score = 0;
+            const solution = DATA[gameState.dish].solution;
+
+            let correctIngredients = 0;
+            gameState.ingredients.forEach(ing => {
+                if (solution.ingredients.includes(ing)) {
+                    score += 5;
+                    correctIngredients++;
+                } else {
+                    score -= 2;
+                }
+            });
+            const ingredientScore = (correctIngredients / solution.ingredients.length) * 40;
+            score += ingredientScore;
+
+            let correctTools = 0;
+            gameState.tools.forEach(tool => {
+                if (solution.tools.includes(tool)) {
+                    correctTools++;
+                }
+            });
+            const toolScore = (correctTools / solution.tools.length) * 25;
+            score += toolScore;
+
+            let procedureScore = 0;
+            if (JSON.stringify(gameState.procedures) === JSON.stringify(solution.procedures)) {
+                procedureScore = 25;
+            } else {
+                let correctSteps = 0;
+                gameState.procedures.forEach(p => {
+                    if(solution.procedures.includes(p)) correctSteps++;
+                });
+                procedureScore = (correctSteps / solution.procedures.length) * 15;
+            }
+            score += procedureScore;
+            
+            let platingScore = 0;
+            if (gameState.plating === solution.plating) {
+                platingScore = 10;
+            }
+            score += platingScore;
+
+            score = Math.max(0, Math.min(100, Math.round(score)));
+
+            document.getElementById('final-score').innerText = score;
+        }
+
+        async function getJustification() {
+            const justificationDiv = document.getElementById('score-justification');
+            justificationDiv.innerHTML = `<p class="text-center text-stone-600">Generating your personalized chef's review...</p>`;
+            
+            const selectedDish = gameState.dish;
+            const selectedIngredients = gameState.ingredients.join(', ');
+            const selectedTools = gameState.tools.join(', ');
+            const selectedProcedures = gameState.procedures.join(', ');
+            const finalScore = document.getElementById('final-score').innerText;
+
+            const prompt = `You are a culinary expert providing a friendly, encouraging critique for a home chef who just competed in a virtual cooking challenge. The chef's final score was ${finalScore} out of 100. They chose to cook a ${selectedDish}. Their selected ingredients were: ${selectedIngredients}. Their selected tools were: ${selectedTools}. Their cooking procedures were: ${selectedProcedures}. Provide a short, constructive paragraph on their performance. Focus on what they did well and offer a single piece of actionable advice for next time. Keep the tone positive and supportive.`;
+            
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                const text = result.candidates[0].content.parts[0].text;
+                justificationDiv.innerHTML = `<p class="text-left">${text}</p>`;
+
+            } catch (error) {
+                justificationDiv.innerHTML = `<p class="text-red-500">Error generating review. Please try again.</p>`;
+                console.error("API call failed:", error);
+            }
+        }
+
+        async function getRecipe() {
+            const recipeButton = document.getElementById('recipe-button');
+            const recipeContentDiv = document.getElementById('recipe-content');
+            
+            recipeButton.disabled = true;
+            recipeButton.innerText = "Generating...";
+            
+            const selectedDish = gameState.dish;
+            const selectedIngredients = gameState.ingredients.join(', ');
+            const servings = gameState.servings;
+
+            const prompt = `You are a professional recipe developer. Based on the selected ingredients, provide a detailed recipe for a ${selectedDish} dish for ${servings} people. Use the following ingredients: ${selectedIngredients}. Include a title, a brief description, a list of ingredients with quantities (e.g., 2 cups, 1 tbsp), and a numbered list of instructions. Keep the tone clear and instructional.`;
+            
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                const text = result.candidates[0].content.parts[0].text;
+                
+                recipeContentDiv.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+                document.getElementById('recipe-modal').classList.remove('hidden');
+
+            } catch (error) {
+                recipeContentDiv.innerHTML = `<p class="text-red-500">Error generating recipe. Please try again.</p>`;
+                console.error("API call failed:", error);
+            } finally {
+                recipeButton.disabled = false;
+                recipeButton.innerText = "Get Recipe ✨";
+            }
+        }
+
+        function closeRecipeModal() {
+            document.getElementById('recipe-modal').classList.add('hidden');
+        }
+        
+        function restartGame() {
+            gameState = {
+                dish: null,
+                servings: 2,
+                ingredients: [],
+                tools: [],
+                procedures: [],
+                plating: null,
+            };
+            document.querySelectorAll('.option-card').forEach(card => card.classList.remove('selected'));
+            document.getElementById('servings').value = 2;
+            document.getElementById('plate').innerText = 'Your Dish';
+            showScreen(0);
+        }
+
+        showScreen(0);
+    </script>
+</body>
+</html>
